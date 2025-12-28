@@ -1,5 +1,7 @@
 package com.example
 
+import com.example.routes.configureShopkeeperLoginApi
+import com.example.routes.configureShopkeeperRegisterApi
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -10,7 +12,12 @@ fun main() {
 }
 
 fun Application.module() {
-    configureSecurity()
+//    configureSecurity()
+//    DatabaseFactory.init() // Connect to PostgreSQL
+//    configureSerialization()
+//    configureRouting()
+    DatabaseFactory.init()
     configureSerialization()
-    configureRouting()
+    configureShopkeeperRegisterApi()
+    configureShopkeeperLoginApi()
 }
