@@ -51,19 +51,19 @@ fun Application.configureShopkeeperRegisterApi() {
 
             // 1. Check password match
             if (request.password != request.confirmPassword) {
-                call.respond(ApiResponse(false, "Password & Confirm Password not matched ❌"))
+                call.respond(ApiResponse(false, "Password & Confirm Password not matched"))
                 return@post
             }
 
             // 2. Validate mobile number (10 digits)
             if (!request.mobile.matches("^[0-9]{10}$".toRegex())) {
-                call.respond(ApiResponse(false, "Invalid Mobile Number ❌"))
+                call.respond(ApiResponse(false, "Invalid Mobile Number"))
                 return@post
             }
 
             // 3. Validate email format
             if (!request.email.contains("@")) {
-                call.respond(ApiResponse(false, "Invalid Email Format ❌"))
+                call.respond(ApiResponse(false, "Invalid Email Format"))
                 return@post
             }
 
@@ -80,7 +80,7 @@ fun Application.configureShopkeeperRegisterApi() {
             } > 0
 
             if (exists) {
-                call.respond(ApiResponse(false, "User already registered ❌"))
+                call.respond(ApiResponse(false, "User already registered"))
                 return@post
             }
 
@@ -107,7 +107,7 @@ fun Application.configureShopkeeperRegisterApi() {
             }
 
             // 8. Send response with generated ID
-            call.respond(ApiResponse(true, "Registration Successful ✅", newShopkeeperId))
+            call.respond(ApiResponse(true, "Registration Successful", newShopkeeperId))
         }
     }
 }

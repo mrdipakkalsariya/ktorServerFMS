@@ -30,7 +30,7 @@ fun Application.configureShopkeeperLoginApi() {
             }
 
             if (user == null) {
-                call.respond(ApiResponse(false, "Shopkeeper ID not found ❌"))
+                call.respond(ApiResponse(false, "Shopkeeper ID not found "))
                 return@post
             }
 
@@ -38,7 +38,7 @@ fun Application.configureShopkeeperLoginApi() {
 
             // 2. Verify password
             if (!SecurityUtil.verifyPassword(request.password, storedPassword)) {
-                call.respond(ApiResponse(false, "Incorrect Password ❌"))
+                call.respond(ApiResponse(false, "Incorrect Password "))
                 return@post
             }
 
@@ -46,7 +46,7 @@ fun Application.configureShopkeeperLoginApi() {
             val token = JwtConfig.generateToken(request.shopkeeperId)
 
             // 4. Send login success response with token
-            call.respond(ApiResponse(true, "Login Successful ✅", token))
+            call.respond(ApiResponse(true, "Login Successful ", token))
         }
     }
 }
