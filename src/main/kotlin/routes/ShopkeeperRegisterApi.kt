@@ -14,118 +14,107 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.*
+import java.time.LocalDateTime
 import org.jetbrains.exposed.sql.transactions.transaction
 
 // Only required imports to resolve datetime/javatime/count issues
 import org.jetbrains.exposed.sql.javatime.datetime
+
 //import org.jetbrains.exposed.sql.javatime.JavaLocalDateTime
 
 // ------------ PostgreSQL Table Mapping ------------ //
 
-/**
- * Maps 'shopkeepers' table from PostgreSQL database
- */
+// ------------ PostgreSQL Table Mapping ------------ //
+
 object Shopkeepers : Table("shopkeepers") {
-//    val id = integer("id").autoIncrement() // Primary key (auto increases)
-//    val uid = varchar("shopkeeper_uid", 20).uniqueIndex() // Generated SK ID
-//    val fullName = varchar("full_name", 100)
-//    val mobile = varchar("mobile", 15).uniqueIndex()
-//    val email = varchar("email", 100).uniqueIndex()
-//    val shopAddress = text("shop_address")
-//    val houseAddress = text("house_address")
-//    val password = text("password")
-//
-//    //    val createdAt = datetime("created_at").clientDefault { org.jetbrains.exposed.sql.javatime.JavaLocalDateTime.now() }
-//    val createdAt =
-//        datetime("created_at") // Default value already handled in DB, so we keep it simple
-//
-//    override val primaryKey = PrimaryKey(id)
-val id = integer("id").autoIncrement() // Auto increment primary key
-    val uid = varchar("shopkeeper_uid", 20).uniqueIndex() // Unique shopkeeper ID (SK10001...)
+
+    val id = integer("id").autoIncrement()
+    val uid = varchar("shopkeeper_uid", 20).uniqueIndex()
+
     val fullName = varchar("full_name", 100)
-    val mobile = varchar("mobile", 15).uniqueIndex() // One mobile can register only once
+    val residentAddress = text("resident_address")
+    val shopNameAddress = text("shop_name_address")
+
+    val mobile = varchar("mobile", 10).uniqueIndex()
+    val alternateMobile = varchar("alternate_mobile", 10)
+
     val email = varchar("email", 100).uniqueIndex()
-    val shopAddress = text("shop_address")
-    val houseAddress = text("house_address")
-    val password = text("password") // Hashed password stored here
-    val createdAt = datetime("created_at") // Timestamp handled by DB default
+    val shopType = varchar("shop_type", 50)
+
+    val password = text("password")
+    val createdAt = datetime("created_at")
 
     override val primaryKey = PrimaryKey(id)
 }
 
-/**
- * Shopkeeper Registration API
- * - Validates input fields
- * - Checks if mobile or email already exists
- * - Generates unique shopkeeper ID
- * - Hashes password using BCrypt
- * - Stores data in PostgreSQL
- */
+
+// ------------ API Route ------------ //
+
 fun Application.configureShopkeeperRegisterApi() {
+
     routing {
         post("/auth/shopkeeper/register") {
+
             try {
                 val request = call.receive<RegisterRequest>()
 
-                // 1. Password match validation
+                // 1. Password check
                 if (request.password != request.confirmPassword) {
-                    call.respond(ApiResponse(false, "Password & Confirm Password not matched ❌"))
+                    call.respond(ApiResponse(false, "Passwords do not match"))
                     return@post
                 }
 
-                // 2. Mobile number format validation
-                if (!request.mobile.matches("^[0-9]{10}$".toRegex())) {
-                    call.respond(ApiResponse(false, "Invalid Mobile Number ❌"))
+                // 2. Mobile validation
+                if (!request.mobile.matches(Regex("^[0-9]{10}$"))) {
+                    call.respond(ApiResponse(false, "Invalid mobile number"))
                     return@post
                 }
 
-                // 3. Email format validation
-                if (!request.email.contains("@")) {
-                    call.respond(ApiResponse(false, "Invalid Email Format ❌"))
-                    return@post
-                }
-
-                // 4. Already registered check (mobile OR email)
+                // 3. Check existing user
                 val exists = transaction {
                     Shopkeepers.select {
-                        (Shopkeepers.mobile eq request.mobile) or (Shopkeepers.email eq request.email)
+                        (Shopkeepers.mobile eq request.mobile) or
+                                (Shopkeepers.email eq request.email)
                     }.count()
                 } > 0
 
                 if (exists) {
-                    call.respond(ApiResponse(false, "User already registered ❌"))
+                    call.respond(ApiResponse(false, "User already registered"))
                     return@post
                 }
 
-                // 5. Generate new Shopkeeper ID
-                val newShopkeeperId = transaction {
-                    val totalUsers = Shopkeepers.selectAll().count().toInt()
-                    "SK${10000 + totalUsers + 1}"
+                // 4. Generate Shopkeeper ID
+                val newId = transaction {
+                    val count = Shopkeepers.selectAll().count()
+                    "SK${10000 + count + 1}"
                 }
 
-                // 6. Hash password
+                // 5. Hash password
                 val hashedPassword = SecurityUtil.hashPassword(request.password)
 
-                // 7. Insert user into database
+                // 6. Insert data (FIXED)
                 transaction {
                     Shopkeepers.insert {
-                        it[uid] = newShopkeeperId
+                        it[uid] = newId
                         it[fullName] = request.fullName
+                        it[residentAddress] = request.residentAddress
+                        it[shopNameAddress] = request.shopNameAddress
                         it[mobile] = request.mobile
+                        it[alternateMobile] = request.alternateMobile
                         it[email] = request.email
-                        it[shopAddress] = request.shopAddress
-                        it[houseAddress] = request.houseAddress
+                        it[shopType] = request.shopType
                         it[password] = hashedPassword
+                        it[createdAt] = LocalDateTime.now() // ✅ REQUIRED
                     }
                 }
 
-                // 8. Return success response
-                call.respond(ApiResponse(true, "Registration Successful ✅", newShopkeeperId))
+                call.respond(
+                    ApiResponse(true, "Registration successful", newId)
+                )
 
             } catch (e: Exception) {
-                // This prevents HTTP 500 crash and returns proper JSON response
-                println("Register API Crash → ${e.message}")
-                call.respond(ApiResponse(false, "Server Error ❌"))
+                e.printStackTrace() // ✅ DEBUG ONLY
+                call.respond(ApiResponse(false, "Server error"))
             }
         }
     }

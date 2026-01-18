@@ -4,16 +4,17 @@
 package com.example.models
 
 import kotlinx.serialization.Serializable
-
 @Serializable
 data class RegisterRequest(
     val fullName: String,
+    val residentAddress: String,
+    val shopNameAddress: String,
     val mobile: String,
+    val alternateMobile: String,
     val email: String,
-    val shopAddress: String,
-    val houseAddress: String,
     val password: String,
-    val confirmPassword: String
+    val confirmPassword: String,
+    val shopType: String
 )
 
 @Serializable
