@@ -22,31 +22,39 @@ import com.example.routes.Shopkeepers
 fun Application.configureShopkeeperLoginApi() {
     routing {
         post("/auth/shopkeeper/login") {
-            val request = call.receive<LoginRequest>()
+            try {
+                val request = call.receive<LoginRequest>()
 
-            // 1. Fetch user from DB inside transaction
-            val user = transaction {
-                Shopkeepers.select { Shopkeepers.uid eq request.shopkeeperId }.singleOrNull()
+                // 1. Fetch shopkeeper record from DB
+                val user = transaction {
+                    Shopkeepers.select { Shopkeepers.uid eq request.shopkeeperId }.singleOrNull()
+                }
+
+                // 2. If user not found
+                if (user == null) {
+                    call.respond(ApiResponse(false, "Shopkeeper ID not found ❌"))
+                    return@post
+                }
+
+                val storedPassword = user[Shopkeepers.password] // Hashed password from DB
+
+                // 3. Verify password
+                if (!SecurityUtil.verifyPassword(request.password, storedPassword)) {
+                    call.respond(ApiResponse(false, "Incorrect Password ❌"))
+                    return@post
+                }
+
+                // 4. Generate JWT token
+                val token = JwtConfig.generateToken(request.shopkeeperId)
+
+                // 5. Return login success
+                call.respond(ApiResponse(true, "Login Successful ✅", token))
+
+            } catch (e: Exception) {
+                // This prevents HTTP 500 crash
+                println("Login API Crash → ${e.message}")
+                call.respond(ApiResponse(false, "Server Error ❌"))
             }
-
-            if (user == null) {
-                call.respond(ApiResponse(false, "Shopkeeper ID not found "))
-                return@post
-            }
-
-            val storedPassword = user[Shopkeepers.password]
-
-            // 2. Verify password
-            if (!SecurityUtil.verifyPassword(request.password, storedPassword)) {
-                call.respond(ApiResponse(false, "Incorrect Password "))
-                return@post
-            }
-
-            // 3. Generate JWT token
-            val token = JwtConfig.generateToken(request.shopkeeperId)
-
-            // 4. Send login success response with token
-            call.respond(ApiResponse(true, "Login Successful ", token))
         }
     }
 }
